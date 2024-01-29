@@ -1,0 +1,65 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+
+np.random.seed(42)
+
+mu1, sigma1 = 5, 1
+mu2, sigma2 = 10, 2
+
+data1 = np.random.normal(mu1, sigma1, 1000)
+data2 = np.random.normal(mu2, sigma2, 1000)
+observed_data = np.concatenate([data1, data2])
+
+def initialize_parameters():
+    pi = np.random.rand()
+    mu1, mu2 = np.random.rand() * 10, np.random.rand() * 10
+    sigma1, sigma2 = np.random.rand(), np.random.rand()
+    return pi, mu1, sigma1, mu2, sigma2
+
+def gaussian(x, mu, sigma):
+    return norm.pdf(x, mu, sigma)
+
+def expectation_step(data, pi, mu1, sigma1, mu2, sigma2):
+    prob1 = pi * gaussian(data, mu1, sigma1)
+    prob2 = (1 - pi) * gaussian(data, mu2, sigma2)
+
+    total_prob = prob1 + prob2
+    gamma1 = prob1 / total_prob
+    gamma2 = prob2 / total_prob
+
+    return gamma1, gamma2
+
+def maximization_step(data, gamma1, gamma2):
+    N1 = np.sum(gamma1)
+    N2 = np.sum(gamma2)
+
+    pi = (N1 + N2) / len(data)
+    mu1 = np.sum(gamma1 * data) / N1
+    sigma1 = np.sqrt(np.sum(gamma1 * (data - mu1)**2) / N1)
+
+    mu2 = np.sum(gamma2 * data) / N2
+    sigma2 = np.sqrt(np.sum(gamma2 * (data - mu2)**2) / N2)
+
+    return pi, mu1, sigma1, mu2, sigma2
+
+def em_algorithm(data, num_iterations):
+    pi, mu1, sigma1, mu2, sigma2 = initialize_parameters()
+
+    for _ in range(num_iterations):
+        gamma1, gamma2 = expectation_step(data, pi, mu1, sigma1, mu2, sigma2)
+        pi, mu1, sigma1, mu2, sigma2 = maximization_step(data, gamma1, gamma2)
+
+    return pi, mu1, sigma1, mu2, sigma2
+
+num_iterations = 50
+estimated_pi, estimated_mu1, estimated_sigma1, estimated_mu2, estimated_sigma2 = em_algorithm(observed_data, num_iterations)
+x = np.linspace(0, 15, 1000)
+plt.hist(observed_data, bins=30, density=True, alpha=0.5, color='gray', label='Observed Data')
+
+plt.plot(x, estimated_pi * gaussian(x, estimated_mu1, estimated_sigma1), '--', label='Estimated Distribution 1')
+plt.plot(x, (1 - estimated_pi) * gaussian(x, estimated_mu2, estimated_sigma2), '--', label='Estimated Distribution 2')
+
+plt.title('EM Algorithm for Gaussian Mixture Model')
+plt.legend()
+plt.show()
